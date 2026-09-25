@@ -1,0 +1,11 @@
+== flag ABSENT (default) ==
+  ve1262-backoff-retry -> Ship branch: fm/ve1262-backoff-retry
+  ve-1263-deploy-uat -> Ship branch: fm/ve-1263-deploy-uat
+== flag PRESENT: config/ship-branch-ticket-case ==
+  ve1264-backoff-retry -> Ship branch: fm/VE-1264-backoff-retry
+  ve-1265-deploy-uat -> Ship branch: fm/VE-1265-deploy-uat
+  visto-pipelines-ve1266-fix -> Ship branch: fm/visto-pipelines-VE-1266-fix
+  fix-v121-php8-mysql2 -> Ship branch: fm/fix-v121-php8-mysql2
+  ve1267-and-dark1063 -> Ship branch: fm/VE-1267-and-dark1063
+  abc1234567-toolong -> Ship branch: fm/abc1234567-toolong
+  ve1268-prefixed -> Ship branch: fix/VE-1268-prefixed

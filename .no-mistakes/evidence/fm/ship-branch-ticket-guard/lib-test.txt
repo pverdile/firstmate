@@ -1,0 +1,5 @@
+ok - an already-canonical ticket is unchanged
+ok - ticketless ids (including the v121 version-like slug) are returned unchanged
+ok - short slug fragments that only look ticket-shaped are not rewritten
+ok - any prefix is concatenated verbatim in front of the normalized id
+ok - the derived branch carries the canonical ticket token no-mistakes reads
