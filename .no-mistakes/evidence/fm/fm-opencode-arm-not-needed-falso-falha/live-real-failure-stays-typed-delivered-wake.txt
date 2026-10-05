@@ -1,0 +1,6 @@
+⁣FIRSTMATE_OP: v1 watcher: WATCHER FIRED - drain queued wakes with bin/fm-wake-drain.sh and handle the reported wake. Watcher continuity is plugin-owned.
+
+signal: synthetic wake
+
+watcher: FAILED - OpenCode could not verify a ready successor watcher (timeout)
+watcher: FAILED - OpenCode could not restore watcher continuity after 2 retries
