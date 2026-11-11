@@ -109,6 +109,10 @@
 # contract that only arrives after the payload it governs is the first thing a
 # truncated digest loses, and it carries the truncation caveat that keeps it
 # honest when a stage below it never ran.
+# Because a harness that spills an oversized output may show only its head
+# (Claude: about 2,000 characters), every path opens with a short read cue
+# (STARTUP CUE, or RE-EMIT CUE on --reemit) that names the saved full output and
+# the captain-preference files CONTEXT prints last; the files stay at the end.
 # The LOCK/BOOTSTRAP/WAKE-QUEUE safety preamble keeps its order: it establishes
 # mutation authority and this turn's work queue before anything else is read.
 #
@@ -221,9 +225,8 @@
 #             already treats a lock owned through shared ancestry or a trusted
 #             same-session Claude id as its own, so the re-emit proceeds, while
 #             a lock another live session took meanwhile still produces the
-#             ordinary read-only path. A re-emit prints a short RE-EMIT CUE
-#             first, so a harness that spills a large output and shows only its
-#             head still tells the model to read the saved full output.
+#             ordinary read-only path. A re-emit opens with a RE-EMIT CUE
+#             instead of the ordinary STARTUP CUE (see the cue note below).
 #
 #   --source  The native session-open source, supplied only by
 #             fm-sessionstart-run.sh. A genuine `startup` that owns the active
@@ -673,13 +676,19 @@ if [ "$REEMIT" -eq 0 ] && [ "$SESSION_SOURCE" = startup ]; then
   AGENTS_START_HASH=$(hash_file_sha256 "$FM_ROOT/AGENTS.md" 2>/dev/null || true)
 fi
 
+# First in the output on purpose, on every path: a harness that spills a large
+# hook output delivers only a short head inline (Claude: about 2,000
+# characters), and CONTEXT prints last, so this cue is the part that must
+# survive the spill and name the binding captain preferences it would otherwise lose.
+print_read_cue() {
+  printf '%s: if this output ends with "Output too large ... Full output saved to <path>",\n' "$1"
+  printf 'read that whole file now, before acting. %s/captain.md and %s/captain-shared.md\n' "$DATA" "$DATA"
+  printf 'are binding captain preferences printed last in CONTEXT (ABSENT means no file yet): read them before the first captain-facing reply.\n'
+}
+
 if [ "$REEMIT" -eq 1 ]; then
-  # First in the output on purpose: a harness that spills a large hook output
-  # delivers only a short head inline (Claude: about 2,000 characters), and
-  # CONTEXT prints last, so this cue is the part that must survive the spill.
-  printf 'RE-EMIT CUE: if this output ends with "Output too large ... Full output saved to <path>",\n'
-  printf 'read that whole file now, before acting. Otherwise read data/captain.md, data/captain-shared.md,\n'
-  printf 'and data/learnings.md under %s now if any of them is missing below.\n' "$DATA"
+  print_read_cue "RE-EMIT CUE"
+  printf 'Also read %s/learnings.md now if it is missing below.\n' "$DATA"
   section "SESSION START (CONTEXT RE-EMIT) - $FM_HOME"
   printf 'This session already took the helm at its own startup and has only lost its\n'
   printf 'context. Lock ownership is re-verified and the durable records below are\n'
@@ -688,6 +697,7 @@ if [ "$REEMIT" -eq 1 ]; then
   printf 'retry, X-mode artifact writes, and stale Herdr child cleanup - are NOT repeated.\n'
   printf 'Queued wakes ARE still drained: they arrived after startup and are this turn work.\n'
 else
+  print_read_cue "STARTUP CUE"
   section "SESSION START - $FM_HOME"
 fi
 # --- 1. lock -----------------------------------------------------------
@@ -914,8 +924,8 @@ Go to a source directly only when:
     turn needs their verdict (bin/fm-startup-network.sh report),
   - or a STARTUP TRUNCATED banner named the stage that would have printed it, in
     which case that stage's sources were never emitted and must be reconciled,
-  - or a context re-emit opened with a read cue because the
-    harness cut the digest short.
+  - or the digest opened with a read cue because the
+    harness cut it short.
 EOF
 
 # --- 6. fleet-state digest ---------------------------------------------

@@ -2416,16 +2416,29 @@ FIXTURE
 
   normal=$(FM_FAKE_HARNESS_PID=$$ run_session_start "$home" "$root" "$fakebin:$BASE_PATH")
   assert_not_contains "$normal" "RE-EMIT CUE" "a normal start printed the re-emit cue"
+  case "$normal" in
+    "STARTUP CUE: "*) ;;
+    *) fail "a normal start does not open with the startup cue" ;;
+  esac
+  head2k=$(printf '%s' "$normal" | head -c 2000)
+  assert_contains "$head2k" "Full output saved to" "the startup cue does not point at the saved output"
+  assert_contains "$head2k" "$home/data/captain.md" "the startup cue does not name captain.md"
+  assert_contains "$head2k" "$home/data/captain-shared.md" "the startup cue does not name captain-shared.md"
+  assert_contains "$head2k" "$(printf '\nLOCK\n')" "the LOCK section header is not inside the first 2000 characters"
 
   reemit=$(FM_HOME="$home" FM_ROOT_OVERRIDE="$root" FM_FAKE_HARNESS_PID=$$ PATH="$fakebin:$BASE_PATH" \
     env -u CLAUDECODE -u PI_CODING_AGENT -u FM_PI_HARNESS -u GROK_AGENT \
     "$SESSION_START" --reemit)
   [ "${#reemit}" -gt 10000 ] || fail "re-emit fixture did not exceed the hook output limit"
+  case "$reemit" in
+    "RE-EMIT CUE: "*) ;;
+    *) fail "a re-emit does not open with the re-emit cue" ;;
+  esac
   head2k=$(printf '%s' "$reemit" | head -c 2000)
-  assert_contains "$head2k" "RE-EMIT CUE" "the re-emit cue is not inside the first 2000 characters"
+  assert_contains "$head2k" "$home/data/captain.md" "the re-emit cue does not name captain.md"
   assert_contains "$head2k" "Full output saved to" "the re-emit cue does not point at the saved output"
 
-  pass "--reemit puts its read cue in the first 2000 characters and a normal start omits it"
+  pass "startup and --reemit each open with their read cue inside the first 2000 characters"
 }
 
 test_reemit_skips_startup_sweeps_but_keeps_the_wake_drain() {
