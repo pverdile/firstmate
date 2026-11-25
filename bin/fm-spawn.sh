@@ -865,6 +865,21 @@ case "$CLAUDE_PERMISSION_MODE" in
 auto) CLAUDE_PERM_FLAG='--permission-mode auto' ;;
 *) CLAUDE_PERM_FLAG='--dangerously-skip-permissions' ;;
 esac
+# config/claude-worker-settings.json: optional JSON object whose top-level keys
+# join the inline --settings of every Claude ship and scout launch; the keys
+# this script sets itself win. A bad file refuses the spawn here, before any
+# endpoint or metadata exists. Absent leaves the launch byte-identical.
+if ! CLAUDE_WORKER_SETTINGS_PRESENT=$(fm_config_source_present "$CONFIG/claude-worker-settings.json"); then
+  exit 1
+fi
+CLAUDE_WORKER_SETTINGS=
+if [ "$CLAUDE_WORKER_SETTINGS_PRESENT" = 1 ]; then
+  if [ ! -f "$CONFIG/claude-worker-settings.json" ] || [ ! -r "$CONFIG/claude-worker-settings.json" ] ||
+    ! CLAUDE_WORKER_SETTINGS=$(jq -ce 'if type == "object" then . else error("not an object") end' "$CONFIG/claude-worker-settings.json" 2>/dev/null); then
+    echo "error: config/claude-worker-settings.json must be a readable regular file holding one JSON object" >&2
+    exit 1
+  fi
+fi
 if ! CODEX_APPROVAL_PRESENT=$(fm_config_source_present "$CONFIG/codex-approval-mode"); then
   exit 1
 fi
@@ -7587,6 +7602,11 @@ case "$LAUNCH" in
 *__CLAUDESETTINGS__*)
   if [ "$KIND" = secondmate ]; then
     LAUNCH=${LAUNCH//__CLAUDESETTINGS__/$(shell_quote "$STATE_REAL/$ID.claude-settings.json")}
+  elif [ -n "$CLAUDE_WORKER_SETTINGS" ]; then
+    # File keys first, then ours, so jq's right-hand `+` lets firstmate win.
+    claude_settings=$(printf '%s' "$CLAUDE_WORKER_SETTINGS" | jq -c --argjson keep "$KEEP_AI_TRAILERS" \
+      '. + {feedbackDrafts: "off"} + (if $keep == 1 then {} else {attribution: {commit: "", pr: "", sessionUrl: false}} end)') || exit 1
+    LAUNCH=${LAUNCH//__CLAUDESETTINGS__/$(shell_quote "$claude_settings")}
   else
     claude_settings="'{\"feedbackDrafts\":\"off\"__CLAUDEATTRIBUTION__}'"
     LAUNCH=${LAUNCH//__CLAUDESETTINGS__/$claude_settings}

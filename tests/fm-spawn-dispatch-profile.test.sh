@@ -2317,6 +2317,47 @@ test_claude_crewmate_launch_carries_the_attribution_policy() {
   pass "a claude crewmate launch carries the attribution-off policy in its own settings"
 }
 
+spawn_with_worker_settings() {  # <case-name> <file-content|-> ; sets SETTINGS_STATUS, SETTINGS_OUT, SETTINGS_LAUNCH
+  local rec id=$1-id
+  rec=$(make_spawn_case "$1" claude "$id")
+  read_case_record "$rec"
+  [ "$2" = - ] || printf '%s' "$2" > "$HOME_DIR/config/claude-worker-settings.json"
+  SETTINGS_OUT=$(run_ship_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$PROJ_DIR")
+  SETTINGS_STATUS=$?
+  SETTINGS_LAUNCH=
+  [ "$SETTINGS_STATUS" -ne 0 ] || SETTINGS_LAUNCH=$(fm_test_launch_unframe "$(cat "$LAUNCH_LOG")")
+}
+
+test_claude_worker_settings_file() {
+  local settings
+  spawn_with_worker_settings worker-settings-absent -
+  expect_code 0 "$SETTINGS_STATUS" "absent worker settings file should not block the spawn"$'\n'"$SETTINGS_OUT"
+  assert_contains "$SETTINGS_LAUNCH" "--settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false}}'" \
+    "absent worker settings file changed the launch settings JSON"
+
+  spawn_with_worker_settings worker-settings-present '{"enabledPlugins":{"context-mode@context-mode":false}}'
+  expect_code 0 "$SETTINGS_STATUS" "present worker settings file should spawn"$'\n'"$SETTINGS_OUT"
+  settings=$(claude_settings_json_arg "$SETTINGS_LAUNCH")
+  printf '%s' "$settings" | jq -e '.enabledPlugins["context-mode@context-mode"] == false and .feedbackDrafts == "off" and .attribution.sessionUrl == false' >/dev/null \
+    || fail "worker settings key did not join the launch settings: $settings"
+
+  spawn_with_worker_settings worker-settings-conflict '{"feedbackDrafts":"on","attribution":{"commit":"x"},"other":1}'
+  expect_code 0 "$SETTINGS_STATUS" "conflicting worker settings file should spawn"$'\n'"$SETTINGS_OUT"
+  settings=$(claude_settings_json_arg "$SETTINGS_LAUNCH")
+  printf '%s' "$settings" | jq -e '.feedbackDrafts == "off" and .attribution == {"commit":"","pr":"","sessionUrl":false} and .other == 1' >/dev/null \
+    || fail "firstmate keys did not win over the worker settings file: $settings"
+
+  spawn_with_worker_settings worker-settings-bad '{not json'
+  [ "$SETTINGS_STATUS" -ne 0 ] || fail "malformed worker settings file should refuse the spawn"
+  assert_contains "$SETTINGS_OUT" "claude-worker-settings.json" "refusal does not name the worker settings file"
+  [ ! -s "$LAUNCH_LOG" ] || fail "malformed worker settings file still launched a worker"
+
+  spawn_with_worker_settings worker-settings-array '[1]'
+  [ "$SETTINGS_STATUS" -ne 0 ] || fail "non-object worker settings file should refuse the spawn"
+  assert_contains "$SETTINGS_OUT" "claude-worker-settings.json" "refusal does not name the worker settings file"
+  pass "config/claude-worker-settings.json joins the claude worker --settings, firstmate keys win, and a bad file refuses"
+}
+
 test_keep_ai_trailers_omits_attribution_settings_and_strip_hooks() {
   local rec id out status launch
   id=profile-claude-keep-attribution-z25
@@ -3110,6 +3151,7 @@ test_claude_task_launch_carries_control_channel_authority
 test_claude_secondmate_launch_omits_task_control_channel_authority
 test_claude_long_launch_is_delivered_intact
 test_claude_crewmate_launch_carries_the_attribution_policy
+test_claude_worker_settings_file
 test_keep_ai_trailers_omits_attribution_settings_and_strip_hooks
 test_keep_ai_trailers_reaches_secondmate_crew_launches
 test_claude_secondmate_launch_carries_the_attribution_policy

@@ -1949,6 +1949,15 @@ This applies only to agents Firstmate launches; the captain's own primary Firstm
 
 [`fm-spawn.sh --help`](../bin/fm-spawn.sh) owns the delivery mechanics, with focused regression coverage in [`tests/fm-spawn-compact-adviser-disable.test.sh`](../tests/fm-spawn-compact-adviser-disable.test.sh) and [`tests/fm-spawn-compact-adviser-disable-remote.test.sh`](../tests/fm-spawn-compact-adviser-disable-remote.test.sh).
 
+### Claude worker settings
+
+The optional local, gitignored `config/claude-worker-settings.json` holds one JSON object whose top-level keys join the inline `--settings` JSON of every Claude ship and scout worker this home launches.
+It never touches the captain's own sessions or `~/.claude/settings.json`, and it does not apply to secondmate launches.
+The keys Firstmate sets itself (`feedbackDrafts`, and `attribution` unless `config/keep-ai-trailers` is present) win over the same keys in the file.
+A file that is unreadable, not JSON, or not an object refuses the spawn with an error naming it; an absent file leaves the launch unchanged.
+For example, `{"enabledPlugins":{"context-mode@context-mode":false}}` starts workers without the context-mode plugin while the captain's sessions keep it.
+[`fm-spawn.sh`](../bin/fm-spawn.sh) owns the merge, with regression coverage in [`tests/fm-spawn-dispatch-profile.test.sh`](../tests/fm-spawn-dispatch-profile.test.sh).
+
 ### Commit attribution
 
 The optional local, gitignored `config/keep-ai-trailers` presence flag opts this home into keeping AI co-author trailers on its launched workers.
