@@ -935,6 +935,8 @@ The optional local, gitignored `config/pr-register-scan` presence flag opts this
 With the flag present, the watcher's check sweep runs `bin/fm-pr-check.sh scan` before the merge polls.
 The scan reads a ship task's PR only from a ready report: the task's newest crew-declared status line must be a `done:` line that is exactly `PR <url>`, `PR <url> checks green`, or `PR <url> published for review`, so prose around the URL and any later crew line report nothing.
 Later `resolved:` and `captain-held:` lines are supervisor bookkeeping and do not withdraw a ready report.
+A later `paused:` line that names only that same PR declares the review wait and does not withdraw it either, while a `paused:` line naming no PR or another PR still does.
+Punctuation around a PR URL in the `paused:` line, such as a trailing comma or period or enclosing brackets or quotes, and a `#fragment` after it are ignored when the scan reads that URL.
 It records that PR through the ordinary registration path when the task has no `pr=`, or has that same `pr=` but no published merge poll.
 When the status log named the recorded `pr=` and the ready report names a different PR, that PR replaces the recorded one, so a lane that closes a PR and opens another moves its merge poll.
 The flag also covers the PR a secondmate home's parent-channel report carries for a child's ready report (`bin/fm-inactive-reconcile.sh`): with it present, that report applies the same ready-report spellings, accepts any recognized forge URL, and lets the same replacement override the recorded `pr=`, while with it absent a recorded `pr=` always stands and only a GitHub-shaped `PR <url>` or `PR <url> checks green` line fills in a missing one.
@@ -3468,13 +3470,13 @@ Making any of them a precondition is what leaves a provably dead runner owning i
 - Supported secondmate retirement preflights each target home's bounded `sweep-home` command before destructive teardown, snapshots its registrations outside the target, then runs the sweep at that home's final deletion or return boundary.
 - If deletion or return fails, teardown restores those registrations and reconciles them before returning the refusal.
 - If restoration or rearming also fails, teardown returns a distinct status and reports the retained registration backup path for manual recovery instead of hiding the retired waits.
-- The sweep retires local registrations and machine-wide claims whose recorded state-root identity matches that home's resolved state root through the same identity-checked, generation-bound retirement path, and leaves foreign-home claims untouched.
+- The sweep retires local registrations and machine-wide claims whose recorded state-root identity matches that home's own `state/` directory, never an inherited `FM_STATE_OVERRIDE`, through the same identity-checked, generation-bound retirement path, and leaves foreign-home claims untouched.
 - Teardown refuses with the home, lease, routing evidence, registrations, claims, and runners retained when identity is uncertain, ownership is unreadable or unreleased, or relevant state exists without a sweep-capable child script.
 
 **Recover from unsupported manual deletion**
 
 Raw manual deletion of a Firstmate home is unsupported because it can orphan a blocking child.
-To recover, restore that home's tracked `bin/fm-procevent.sh`, run `FM_HOME=<home> <home>/bin/fm-procevent.sh sweep-home`, then rerun the supported teardown.
+To recover, restore that home's tracked `bin/fm-procevent.sh`, run `FM_HOME=<home> FM_STATE_OVERRIDE=<home>/state <home>/bin/fm-procevent.sh sweep-home`, then rerun the supported teardown.
 
 The owning-home lease below bounds how long such an orphan can run, but it is a backstop, not a substitute for the supported path.
 
